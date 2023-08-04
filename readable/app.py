@@ -5,20 +5,23 @@ import os
 from timeit import Timer
 from tkinter import Button
 from tkinter import filedialog
+from tkinter import FLAT
+from tkinter import Frame
 from tkinter import Label
 from tkinter import PhotoImage
+from tkinter import SUNKEN
 from tkinter import Tk
+from tkinter import ttk
 
 import cv2
 import pytesseract
 from function import timer
 from pdf2image import convert_from_path
-from PIL import Image
-from PIL import ImageTk
 
-CANVAS_HEIGHT = 800
-CANVAS_WIDTH = 1422
+CANVAS_HEIGHT = 250
+CANVAS_WIDTH = 150
 GEOMETRY = f'{CANVAS_HEIGHT}x{CANVAS_WIDTH}'
+BACKGROUND_COLOR = '#d6d6d6'
 
 CONVERTED_IMAGE_BASE_PATH = 'file'
 PDF_PATH = ''
@@ -29,15 +32,15 @@ OUTPUT_TEXT_FILE_NAME = 'converted.txt'
 window = Tk()
 
 window.geometry(GEOMETRY)
-
-os.pardir
+window.title('Readable')
+window.configure(background=BACKGROUND_COLOR)
 
 
 @timer  # 0.13524599999999998
 def get_file_path_to_convert():
     global PDF_PATH
     try:
-        file_path = filedialog.askopenfilename(
+        PDF_PATH = filedialog.askopenfilename(
             initialdir='/',
             title='Select a File',
             filetypes=(
@@ -53,7 +56,6 @@ def get_file_path_to_convert():
         )
     except OSError:
         print('Input Error.')
-    PDF_PATH = file_path
 
 
 def create_folder_if_not_exists(folder_name):
@@ -71,14 +73,11 @@ def pdf_to_image():
     get_file_path_to_convert()
     create_folder_if_not_exists(CONVERTED_IMAGE_BASE_PATH)
     convert_from_path(
-        PDF_PATH, 500, output_folder=CONVERTED_IMAGE_FOLDER_PATH, output_file='file',
+        PDF_PATH,
+        500,
+        output_folder=CONVERTED_IMAGE_FOLDER_PATH,
+        output_file='file',
     )
-    image = Image.open(f'{CONVERTED_IMAGE_FOLDER_PATH}/file0001-1.ppm')
-    image = image.resize((600, 800))
-    i = ImageTk.PhotoImage(image)
-    panel = Label(window, image=i)
-    panel.image = i
-    panel.pack()
 
 
 @timer
@@ -122,24 +121,50 @@ def convert_to_text():
     write_output(path=OUTPUT_TEXT_PATH, output=output)
 
 
+def on_enter(e):
+    # Function to change button border color when the mouse hovers over the button
+    button_explore.configure(relief=SUNKEN)
+
+
+def on_leave(e):
+    # Function to reset button border color when the mouse leaves the button
+    button_explore.configure(relief=FLAT)
+
+
+# Create the frame with the same background color to simulate the "mac os feel"
+frame = Frame(window, background=BACKGROUND_COLOR)
+
 button_explore = Button(
-    window,
+    frame,
     text='Browse Files',
     command=pdf_to_image,
-).pack()
-
-button_exit = Button(
-    window,
-    text='Exit',
-    command=exit,
-).pack()
-
+    relief=FLAT,
+    background=BACKGROUND_COLOR,
+    foreground='black',
+    borderwidth=2,
+    highlightbackground=BACKGROUND_COLOR,
+    highlightthickness=0,
+)
+button_explore.bind('<Enter>', on_enter)
+button_explore.bind('<Leave>', on_leave)
 
 button_convert = Button(
-    window,
+    frame,
     text='Convert File',
     command=convert_to_text,
-).pack()
+    relief=FLAT,
+    background=BACKGROUND_COLOR,
+    foreground='black',
+    borderwidth=2,
+    highlightbackground=BACKGROUND_COLOR,
+    highlightthickness=0,
+)
 
+# Pack the buttons into the frame
+button_explore.pack(padx=5, pady=12)
+button_convert.pack(padx=5, pady=12)
+
+# Pack the frame into the window
+frame.pack(padx=10, pady=20)
 
 window.mainloop()
