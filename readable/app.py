@@ -1,17 +1,12 @@
 from __future__ import annotations
 
-import concurrent.futures
 import os
+import sys
 from multiprocessing import Pool
 from timeit import Timer
 from tkinter import Button
+from tkinter import DoubleVar
 from tkinter import filedialog
-from tkinter import FLAT
-from tkinter import Frame
-from tkinter import Label
-from tkinter import PhotoImage
-from tkinter import SUNKEN
-from tkinter import Tk
 
 import cv2
 import pytesseract
@@ -19,8 +14,8 @@ import ttkbootstrap as ttk
 from function import timer
 from pdf2image import convert_from_path
 
-CANVAS_HEIGHT = 200
-CANVAS_WIDTH = 150
+CANVAS_HEIGHT = 300
+CANVAS_WIDTH = 200
 GEOMETRY = f'{CANVAS_HEIGHT}x{CANVAS_WIDTH}'
 BACKGROUND_COLOR = '#d6d6d6'
 
@@ -75,6 +70,7 @@ def pdf_to_image():
         output_folder=CONVERTED_IMAGE_FOLDER_PATH,
         output_file='file',
     )
+    button_convert.configure(state='active')
 
 
 def conversion(filename, path):
@@ -111,28 +107,33 @@ def choose_directory():
 
 def convert_to_text():
     choose_directory()
+
     write_output(
         input_path=CONVERTED_IMAGE_FOLDER_PATH,
         output_path=OUTPUT_TEXT_PATH,
+
     )
 
-
-def on_enter(e):
-    # Function to change button border color when the mouse hovers over the button
-    button_explore.configure(relief=SUNKEN)
+    button_open_converted_file.configure(state='active')
 
 
-def on_leave(e):
-    # Function to reset button border color when the mouse leaves the button
-    button_explore.configure(relief=FLAT)
+def open_converted_file():
+    platform = sys.platform
+    output_file_path = os.path.join(OUTPUT_TEXT_PATH, OUTPUT_TEXT_FILE_NAME)
+    match platform:
+        case 'darwin':
+            os.system(f'open {output_file_path}')
+        case 'win32' | 'win64':
+            os.startfile(output_file_path)
+        case 'linux':
+            os.system(f'xdg-open {output_file_path}')
 
 
 if __name__ == '__main__':
-    window = Tk()
+    window = ttk.Window(themename='lumen')
 
     window.geometry(GEOMETRY)
     window.title('Readable')
-    window.configure(background=BACKGROUND_COLOR)
 
     # Create the frame with the same background color to simulate the "mac os feel"
 
@@ -140,18 +141,29 @@ if __name__ == '__main__':
         window,
         text='Browse Files',
         command=pdf_to_image,
+        width=9
     )
-    button_explore.bind('<Enter>', on_enter)
-    button_explore.bind('<Leave>', on_leave)
 
     button_convert = ttk.Button(
         window,
         text='Convert File',
         command=convert_to_text,
+        state='disabled',
+        width=9
+    )
+
+    button_open_converted_file = ttk.Button(
+        window,
+        text='Open File',
+        command=open_converted_file,
+        bootstyle='info',
+        state='disabled',
+        width=9
     )
 
     # Pack the buttons into the frame
     button_explore.pack(padx=5, pady=12)
     button_convert.pack(padx=5, pady=12)
+    button_open_converted_file.pack(padx=5, pady=12)
 
     window.mainloop()
