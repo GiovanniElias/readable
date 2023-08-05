@@ -12,10 +12,10 @@ from tkinter import Label
 from tkinter import PhotoImage
 from tkinter import SUNKEN
 from tkinter import Tk
-from tkinter import ttk
 
 import cv2
 import pytesseract
+import ttkbootstrap as ttk
 from function import timer
 from pdf2image import convert_from_path
 
@@ -136,29 +136,18 @@ if __name__ == '__main__':
 
     # Create the frame with the same background color to simulate the "mac os feel"
 
-    button_explore = Button(
+    button_explore = ttk.Button(
         window,
         text='Browse Files',
         command=pdf_to_image,
-        background=HIGHLIGHT_BUTTON_COLOR if HIGHLIGHT_BUTTON_FLAG else BACKGROUND_COLOR,
-        foreground='black',
-        borderwidth=2,
-        highlightbackground=BACKGROUND_COLOR,
-        highlightthickness=0,
     )
     button_explore.bind('<Enter>', on_enter)
     button_explore.bind('<Leave>', on_leave)
 
-    button_convert = Button(
+    button_convert = ttk.Button(
         window,
         text='Convert File',
         command=convert_to_text,
-        background=BACKGROUND_COLOR if not HIGHLIGHT_BUTTON_FLAG else HIGHLIGHT_BUTTON_COLOR,
-        foreground='black',
-        borderwidth=2,
-        relief=FLAT,
-        highlightbackground=BACKGROUND_COLOR,
-        highlightthickness=0,
     )
 
     # Pack the buttons into the frame
