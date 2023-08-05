@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import os
+from multiprocessing import Pool
 from timeit import Timer
 from tkinter import Button
 from tkinter import filedialog
@@ -18,7 +19,7 @@ import pytesseract
 from function import timer
 from pdf2image import convert_from_path
 
-CANVAS_HEIGHT = 250
+CANVAS_HEIGHT = 200
 CANVAS_WIDTH = 150
 GEOMETRY = f'{CANVAS_HEIGHT}x{CANVAS_WIDTH}'
 BACKGROUND_COLOR = '#d6d6d6'
@@ -28,12 +29,8 @@ PDF_PATH = ''
 CONVERTED_IMAGE_FOLDER_PATH = ''
 OUTPUT_TEXT_PATH = ''
 OUTPUT_TEXT_FILE_NAME = 'converted.txt'
-
-window = Tk()
-
-window.geometry(GEOMETRY)
-window.title('Readable')
-window.configure(background=BACKGROUND_COLOR)
+HIGHLIGHT_BUTTON_COLOR = '#007AFF'
+HIGHLIGHT_BUTTON_FLAG = False
 
 
 @timer  # 0.13524599999999998
@@ -80,33 +77,30 @@ def pdf_to_image():
     )
 
 
-@timer
-def write_output(path, output):
-    path = os.path.join(path, OUTPUT_TEXT_FILE_NAME)
-    with open(path, 'w') as text:
-        for page_future in output:
-            page = page_future.result()
-            text.write(page)
-
-
-def conversion(filename):
-    img_path = os.path.join(CONVERTED_IMAGE_FOLDER_PATH, filename)
+def conversion(filename, path):
+    img_path = os.path.join(path, filename)
     img = cv2.imread(img_path)
     return pytesseract.image_to_string(img)
 
 
-def with_threading(filename):
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-        return executor.submit(conversion, filename)
-
-
 @timer  # 8.094518
-def image_to_text():
-    output = []
-    for filename in sorted(os.listdir(CONVERTED_IMAGE_FOLDER_PATH)):
-        output.append(with_threading(filename))
+def image_to_text(path):
+    files_to_convert = sorted(os.listdir(path))
+    return [filename for filename in files_to_convert]
 
-    return output
+
+@timer
+def write_output(input_path, output_path):
+    output_file_path = os.path.join(output_path, OUTPUT_TEXT_FILE_NAME)
+    with Pool(processes=8) as pool:
+        pages = pool.starmap(
+            conversion, [(filename, input_path)
+                         for filename in image_to_text(input_path)],
+        )
+
+    with open(output_file_path, 'w') as text:
+        for page in pages:
+            text.write(page)
 
 
 def choose_directory():
@@ -117,8 +111,10 @@ def choose_directory():
 
 def convert_to_text():
     choose_directory()
-    output = image_to_text()
-    write_output(path=OUTPUT_TEXT_PATH, output=output)
+    write_output(
+        input_path=CONVERTED_IMAGE_FOLDER_PATH,
+        output_path=OUTPUT_TEXT_PATH,
+    )
 
 
 def on_enter(e):
@@ -131,40 +127,42 @@ def on_leave(e):
     button_explore.configure(relief=FLAT)
 
 
-# Create the frame with the same background color to simulate the "mac os feel"
-frame = Frame(window, background=BACKGROUND_COLOR)
+if __name__ == '__main__':
+    window = Tk()
 
-button_explore = Button(
-    frame,
-    text='Browse Files',
-    command=pdf_to_image,
-    relief=FLAT,
-    background=BACKGROUND_COLOR,
-    foreground='black',
-    borderwidth=2,
-    highlightbackground=BACKGROUND_COLOR,
-    highlightthickness=0,
-)
-button_explore.bind('<Enter>', on_enter)
-button_explore.bind('<Leave>', on_leave)
+    window.geometry(GEOMETRY)
+    window.title('Readable')
+    window.configure(background=BACKGROUND_COLOR)
 
-button_convert = Button(
-    frame,
-    text='Convert File',
-    command=convert_to_text,
-    relief=FLAT,
-    background=BACKGROUND_COLOR,
-    foreground='black',
-    borderwidth=2,
-    highlightbackground=BACKGROUND_COLOR,
-    highlightthickness=0,
-)
+    # Create the frame with the same background color to simulate the "mac os feel"
 
-# Pack the buttons into the frame
-button_explore.pack(padx=5, pady=12)
-button_convert.pack(padx=5, pady=12)
+    button_explore = Button(
+        window,
+        text='Browse Files',
+        command=pdf_to_image,
+        background=HIGHLIGHT_BUTTON_COLOR if HIGHLIGHT_BUTTON_FLAG else BACKGROUND_COLOR,
+        foreground='black',
+        borderwidth=2,
+        highlightbackground=BACKGROUND_COLOR,
+        highlightthickness=0,
+    )
+    button_explore.bind('<Enter>', on_enter)
+    button_explore.bind('<Leave>', on_leave)
 
-# Pack the frame into the window
-frame.pack(padx=10, pady=20)
+    button_convert = Button(
+        window,
+        text='Convert File',
+        command=convert_to_text,
+        background=BACKGROUND_COLOR if not HIGHLIGHT_BUTTON_FLAG else HIGHLIGHT_BUTTON_COLOR,
+        foreground='black',
+        borderwidth=2,
+        relief=FLAT,
+        highlightbackground=BACKGROUND_COLOR,
+        highlightthickness=0,
+    )
 
-window.mainloop()
+    # Pack the buttons into the frame
+    button_explore.pack(padx=5, pady=12)
+    button_convert.pack(padx=5, pady=12)
+
+    window.mainloop()
