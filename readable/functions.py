@@ -8,6 +8,7 @@ from multiprocessing import Pool
 from tkinter import filedialog
 
 import cv2
+import numpy as np
 import pytesseract
 from pdf2image import convert_from_path
 
@@ -17,6 +18,7 @@ OUTPUT_TEXT_FILE_NAME = 'converted.txt'
 OUTPUT_TEXT_PATH = ''
 CONVERTED_IMAGE_FOLDER_PATH = ''
 PDF_PATH = ''
+THRESHOLD = 100.0
 
 
 class Util:
@@ -91,14 +93,21 @@ class OnclickFunctions:
                 os.system(f'xdg-open {output_file_path}')
 
 
-# @Util.timer
-# def select_input_file():
-#     get_file_path_to_convert()
-
-#
-
-
 class Conversion:
+
+    def is_image_blurry(image):
+        variance_of_laplacian = cv2.Laplacian(image, cv2.CV_64F).var()
+        return variance_of_laplacian < THRESHOLD
+
+    def preprocess_image(image):
+        kernel = np.array(
+            [[0, -1, 0],
+             [-1, 5, -1],
+             [0, -1, 0]]
+        )
+        sharpened_image = cv2.filter2D(image, -1, kernel)
+        return sharpened_image
+
     def convert_pdf_to_image():
         Util.create_folder_if_not_exists(CONVERTED_IMAGE_BASE_PATH)
         # according to docparser: 300 dpi seems to give otpimal results
@@ -112,6 +121,8 @@ class Conversion:
     def conversion(filename, path):
         img_path = os.path.join(path, filename)
         img = cv2.imread(img_path)
+        if Conversion.is_image_blurry(img):
+            img = Conversion.preprocess_image(img)
         return pytesseract.image_to_string(img)
 
     @Util.timer
@@ -132,3 +143,7 @@ class Conversion:
         with open(output_file_path, 'w') as text:
             for page in pages:
                 text.write(page)
+
+
+class TempCleanup:
+    pass
