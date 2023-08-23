@@ -13,7 +13,8 @@ import pytesseract
 from pdf2image import convert_from_path
 
 
-CONVERTED_IMAGE_BASE_PATH = 'file'
+CONVERTED_IMAGE_FOLDER_NAME = 'file'
+CONVERTED_IMAGE_FILE_NAME = 'file'
 OUTPUT_TEXT_FILE_NAME = 'converted.txt'
 OUTPUT_TEXT_PATH = ''
 CONVERTED_IMAGE_FOLDER_PATH = ''
@@ -34,13 +35,13 @@ class Util:
 
         return wrap
 
-    def create_folder_if_not_exists(folder_name):
+    def create_folder_if_not_exists():
         global CONVERTED_IMAGE_FOLDER_PATH
         path = os.environ.get('HOME')
-        folder_path = os.path.join(path, folder_name)
+        folder_path = os.path.join(path, CONVERTED_IMAGE_FOLDER_NAME)
         if not os.path.exists(folder_path):
             os.chdir(path)
-            os.mkdir(folder_name)
+            os.mkdir(CONVERTED_IMAGE_FOLDER_NAME)
         CONVERTED_IMAGE_FOLDER_PATH = folder_path
 
     def choose_output_directory():
@@ -50,7 +51,6 @@ class Util:
 
 
 class OnclickFunctions:
-    @Util.timer
     def select_input_file():
         global PDF_PATH
         try:
@@ -73,11 +73,11 @@ class OnclickFunctions:
 
     def convert_to_text():
         Util.choose_output_directory()
+        Util.create_folder_if_not_exists()
         Conversion.convert_pdf_to_image()
         Conversion.write_output(
             input_path=CONVERTED_IMAGE_FOLDER_PATH,
             output_path=OUTPUT_TEXT_PATH,
-
         )
 
     def open_converted_file():
@@ -94,28 +94,26 @@ class OnclickFunctions:
 
 
 class Conversion:
-
     def is_image_blurry(image):
-        variance_of_laplacian = cv2.Laplacian(image, cv2.CV_64F).var()
+        try:
+            variance_of_laplacian = cv2.Laplacian(image, cv2.CV_64F).var()
+            print(variance_of_laplacian)
+        except Exception:
+            return False
         return variance_of_laplacian < THRESHOLD
 
     def preprocess_image(image):
-        kernel = np.array(
-            [[0, -1, 0],
-             [-1, 5, -1],
-             [0, -1, 0]]
-        )
+        kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
         sharpened_image = cv2.filter2D(image, -1, kernel)
         return sharpened_image
 
     def convert_pdf_to_image():
-        Util.create_folder_if_not_exists(CONVERTED_IMAGE_BASE_PATH)
         # according to docparser: 300 dpi seems to give otpimal results
         convert_from_path(
             PDF_PATH,
             300,
             output_folder=CONVERTED_IMAGE_FOLDER_PATH,
-            output_file='file',
+            output_file=CONVERTED_IMAGE_FILE_NAME,
         )
 
     def conversion(filename, path):
@@ -125,25 +123,28 @@ class Conversion:
             img = Conversion.preprocess_image(img)
         return pytesseract.image_to_string(img)
 
-    @Util.timer
     def image_to_text(path):
         files_to_convert = sorted(os.listdir(path))
-        return [filename for filename in files_to_convert]
+        return [filename for filename in files_to_convert if filename.startswith(CONVERTED_IMAGE_FILE_NAME)]
 
-    @Util.timer
     def write_output(input_path, output_path):
         output_file_path = os.path.join(output_path, OUTPUT_TEXT_FILE_NAME)
         with Pool(processes=8) as pool:
             pages = pool.starmap(
                 Conversion.conversion,
-                [(filename, input_path)
-                 for filename in Conversion.image_to_text(input_path)],
+                [
+                    (filename, input_path)
+                    for filename in Conversion.image_to_text(input_path)
+                ],
             )
 
         with open(output_file_path, 'w') as text:
             for page in pages:
                 text.write(page)
+        TempCleanup.delete_temporary_images()
 
 
 class TempCleanup:
-    pass
+    def delete_temporary_images():
+        command = f'rm -rf {CONVERTED_IMAGE_FOLDER_PATH}'
+        os.system(command)

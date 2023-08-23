@@ -18,7 +18,8 @@ def convert_to_text():
 
 if __name__ == '__main__':
     ui = UI(
-        select_input_file=select_input_file, convert_to_text=convert_to_text,
+        select_input_file=select_input_file,
+        convert_to_text=convert_to_text,
         open_converted_file=OnclickFunctions.open_converted_file,
     )
     ui.render()
